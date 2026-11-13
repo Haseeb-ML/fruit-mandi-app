@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Search, Phone, MapPin, Pencil, Trash2 } from 'lucide-react';
 import Modal from './Modal';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 import { formatNum, formatRs } from '../utils/format';
 
 const EMPTY_BUYER = {
@@ -8,14 +9,14 @@ const EMPTY_BUYER = {
   contactName: '',
   phone: '',
   mandi: '',
-  outstanding: '',
-  creditLimit: '150000',
+  creditLimit: '50000',
 };
 
 export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
   const [query, setQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_BUYER);
 
   const filtered = buyers.filter(
@@ -38,8 +39,7 @@ export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
       contactName: buyer.contactName,
       phone: buyer.phone,
       mandi: buyer.mandi,
-      outstanding: String(buyer.outstanding || ''),
-      creditLimit: String(buyer.creditLimit || '100000'),
+      creditLimit: String(buyer.creditLimit || '50000'),
     });
     setModalOpen(true);
   };
@@ -52,20 +52,18 @@ export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
       contactName: form.contactName.trim() || 'Owner',
       phone: form.phone.trim() || '0300-0000000',
       mandi: form.mandi.trim() || 'Lahore Mandi',
-      outstanding: Number(form.outstanding) || 0,
-      creditLimit: Math.max(1000, Number(form.creditLimit) || 100000),
+      creditLimit: Math.max(1000, Number(form.creditLimit) || 50000),
     };
     if (editingId) {
       onUpdate(editingId, payload);
     } else {
-      onAdd(payload);
+      onAdd({ ...payload, outstanding: 0 });
     }
     setModalOpen(false);
   };
 
   return (
     <div className="space-y-4">
-      {/* Section Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Buyers</h2>
@@ -83,7 +81,6 @@ export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
         </button>
       </div>
 
-      {/* Search Bar */}
       <div className="relative">
         <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
         <input
@@ -95,7 +92,6 @@ export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
         />
       </div>
 
-      {/* Buyer Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {filtered.map((buyer) => {
           const ratio = Math.min(
@@ -103,10 +99,10 @@ export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
             Math.round((buyer.outstanding / Math.max(1, buyer.creditLimit)) * 100)
           );
           const barColor =
-            ratio >= 75
-              ? 'bg-amber-600'
-              : ratio >= 95
+            ratio >= 95
               ? 'bg-rose-600'
+              : ratio >= 75
+              ? 'bg-amber-500'
               : 'bg-emerald-500';
           const initial = buyer.businessName.charAt(0).toUpperCase();
 
@@ -140,7 +136,7 @@ export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => onDelete(buyer.id)}
+                    onClick={() => setDeleteTarget(buyer)}
                     className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
                     title="Delete buyer"
                   >
@@ -189,53 +185,50 @@ export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
 
       <Modal
         open={modalOpen}
-        title={editingId ? 'Edit Buyer' : 'Add New Buyer'}
-        urduTitle={editingId ? 'خریدار ترمیم کریں' : 'نیا خریدار شامل کریں'}
+        title={editingId ? 'Edit Buyer — ترمیم' : 'Add Buyer — نیا خریدار'}
         onClose={() => setModalOpen(false)}
       >
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Business / Shop Name *
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Shop Name <span className="text-gray-400 font-urdu">دکان کا نام</span>
             </label>
             <input
               type="text"
               required
               value={form.businessName}
               onChange={(e) => setForm({ ...form, businessName: e.target.value })}
-              placeholder="e.g. Khan Fruit Centre"
+              placeholder="Khan Fruit Centre"
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
-                Contact Person
-              </label>
-              <input
-                type="text"
-                value={form.contactName}
-                onChange={(e) => setForm({ ...form, contactName: e.target.value })}
-                placeholder="Asif Khan"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
-                Phone
-              </label>
-              <input
-                type="text"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="0300-1122334"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Owner <span className="text-gray-400 font-urdu">مالک</span>
+            </label>
+            <input
+              type="text"
+              value={form.contactName}
+              onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+              placeholder="Asif Khan"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
+            />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Mandi Location
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Phone <span className="text-gray-400 font-urdu">فون</span>
+            </label>
+            <input
+              type="text"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="0300-1122334"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Market <span className="text-gray-400 font-urdu">منڈی</span>
             </label>
             <input
               type="text"
@@ -245,42 +238,48 @@ export default function BuyersScreen({ buyers, onAdd, onUpdate, onDelete }) {
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
-                Outstanding (Rs)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={form.outstanding}
-                onChange={(e) => setForm({ ...form, outstanding: e.target.value })}
-                placeholder="0"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
-                Credit Limit (Rs)
-              </label>
-              <input
-                type="number"
-                min="1000"
-                value={form.creditLimit}
-                onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
-                placeholder="150000"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Credit Limit <span className="text-gray-400 font-urdu">کریڈٹ حد</span>
+            </label>
+            <input
+              type="number"
+              min="1000"
+              value={form.creditLimit}
+              onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
+              placeholder="50000"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-emerald-600"
+            />
           </div>
-          <button
-            type="submit"
-            className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold transition-colors"
-          >
-            {editingId ? 'Save Changes' : 'Save Buyer'}
-          </button>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-sm font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold transition-colors"
+            >
+              Save — <span className="font-urdu">محفوظ</span>
+            </button>
+          </div>
         </form>
       </Modal>
+
+      <ConfirmDeleteModal
+        open={Boolean(deleteTarget)}
+        title="Delete Buyer?"
+        urduMessage="خریدار حذف کریں؟"
+        icon="warning"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          onDelete(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import Modal from './Modal';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
-export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
+export default function ArrivalScreen({
+  arrivals,
+  farmers,
+  onAdd,
+  onUpdate,
+  onDelete,
+}) {
   const [query, setQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     farmerName: farmers[0]?.name || '',
@@ -21,27 +30,57 @@ export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
       a.date.includes(query)
   );
 
+  const openNew = () => {
+    setEditingId(null);
+    setForm({
+      date: new Date().toISOString().slice(0, 10),
+      farmerName: farmers[0]?.name || '',
+      fruit: 'Mango',
+      grade: 'A-Grade',
+      boxes: '',
+      weightKg: '',
+    });
+    setModalOpen(true);
+  };
+
+  const openEdit = (item) => {
+    setEditingId(item.id);
+    setForm({
+      date: item.date,
+      farmerName: item.farmerName,
+      fruit: item.fruit,
+      grade: item.grade,
+      boxes: String(item.boxes),
+      weightKg: String(item.weightKg),
+    });
+    setModalOpen(true);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const boxes = Number(form.boxes) || 0;
     const weightKg = Number(form.weightKg) || boxes * 20;
     if (!form.farmerName.trim() || boxes <= 0) return;
 
-    onAdd({
+    const payload = {
       date: form.date,
       farmerName: form.farmerName.trim(),
       fruit: form.fruit,
       grade: form.grade,
       boxes,
       weightKg,
-    });
+    };
+
+    if (editingId) {
+      onUpdate(editingId, payload);
+    } else {
+      onAdd(payload);
+    }
     setModalOpen(false);
-    setForm((prev) => ({ ...prev, boxes: '', weightKg: '' }));
   };
 
   return (
     <div className="space-y-4">
-      {/* Section Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Fruit Arrival</h2>
@@ -51,7 +90,7 @@ export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
         </div>
         <button
           type="button"
-          onClick={() => setModalOpen(true)}
+          onClick={openNew}
           className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold shadow-sm transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -59,7 +98,6 @@ export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
         </button>
       </div>
 
-      {/* Search Bar */}
       <div className="relative">
         <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
         <input
@@ -71,10 +109,9 @@ export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
         />
       </div>
 
-      {/* Arrivals Table Card */}
       <div className="bg-white rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[600px]">
+          <table className="w-full text-left border-collapse min-w-[660px]">
             <thead>
               <tr className="border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/70">
                 <th className="py-3.5 px-4">
@@ -95,6 +132,7 @@ export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
                 <th className="py-3.5 px-4">
                   WEIGHT / <span className="font-urdu">وزن</span>
                 </th>
+                <th className="py-3.5 px-4 text-right">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
@@ -126,11 +164,31 @@ export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
                     {item.boxes}
                   </td>
                   <td className="py-3.5 px-4 text-gray-600">{item.weightKg} kg</td>
+                  <td className="py-3.5 px-4 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(item)}
+                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Edit arrival"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(item)}
+                        className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
+                        title="Delete arrival"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="py-8 text-center text-sm text-gray-400">
                     No arrival entries found.
                   </td>
                 </tr>
@@ -142,8 +200,8 @@ export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
 
       <Modal
         open={modalOpen}
-        title="New Fruit Arrival"
-        urduTitle="نیا پھل آمد درج کریں"
+        title={editingId ? 'Edit Fruit Arrival' : 'New Fruit Arrival'}
+        urduTitle={editingId ? 'پھل آمد ترمیم' : 'نیا پھل آمد درج کریں'}
         onClose={() => setModalOpen(false)}
       >
         <form onSubmit={handleSubmit} className="space-y-3.5">
@@ -242,14 +300,35 @@ export default function ArrivalScreen({ arrivals, farmers, onAdd }) {
               />
             </div>
           </div>
-          <button
-            type="submit"
-            className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold transition-colors"
-          >
-            Save Arrival
-          </button>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-sm font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold transition-colors"
+            >
+              Save — <span className="font-urdu">محفوظ</span>
+            </button>
+          </div>
         </form>
       </Modal>
+
+      <ConfirmDeleteModal
+        open={Boolean(deleteTarget)}
+        title="Delete Arrival?"
+        urduMessage="پھل آمد حذف کریں؟"
+        icon="trash"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          onDelete(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

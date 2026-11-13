@@ -14,18 +14,24 @@ import {
   INITIAL_BUYERS,
   INITIAL_EXPENSES,
   INITIAL_FARMERS,
+  INITIAL_NOTIFICATIONS,
   INITIAL_SETTINGS,
+  INITIAL_TRANSACTIONS,
   INITIAL_WEEKLY_SALES,
 } from './data/initialData';
 import { getInitials, getTodayDisplay } from './utils/format';
+import LoginScreen from './components/LoginScreen';
 import DashboardScreen from './components/DashboardScreen';
 import FarmersScreen from './components/FarmersScreen';
 import BuyersScreen from './components/BuyersScreen';
 import ArrivalScreen from './components/ArrivalScreen';
 import AuctionScreen from './components/AuctionScreen';
 import SettingsScreen from './components/SettingsScreen';
+import NotificationsScreen from './components/NotificationsScreen';
+import QuickToolsModal from './components/QuickToolsModal';
 
-const STORAGE_KEY = 'al_barkat_fruit_mandi_v1';
+const STORAGE_KEY = 'al_barkat_fruit_mandi_v2';
+const AUTH_KEY = 'al_barkat_fruit_mandi_auth';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, headerTitle: 'Dashboard' },
@@ -49,8 +55,11 @@ function loadSavedState() {
 export default function App() {
   const saved = loadSavedState();
 
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => localStorage.getItem(AUTH_KEY) === 'true'
+  );
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [notifOpen, setNotifOpen] = useState(false);
+  const [quickTool, setQuickTool] = useState(null);
 
   const [settings, setSettings] = useState(saved?.settings || INITIAL_SETTINGS);
   const [farmers, setFarmers] = useState(saved?.farmers || INITIAL_FARMERS);
@@ -58,20 +67,66 @@ export default function App() {
   const [arrivals, setArrivals] = useState(saved?.arrivals || INITIAL_ARRIVALS);
   const [auctions, setAuctions] = useState(saved?.auctions || INITIAL_AUCTIONS);
   const [expenses, setExpenses] = useState(saved?.expenses || INITIAL_EXPENSES);
+  const [transactions, setTransactions] = useState(
+    saved?.transactions || INITIAL_TRANSACTIONS
+  );
+  const [notifications, setNotifications] = useState(
+    saved?.notifications || INITIAL_NOTIFICATIONS
+  );
 
   useEffect(() => {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ settings, farmers, buyers, arrivals, auctions, expenses })
+        JSON.stringify({
+          settings,
+          farmers,
+          buyers,
+          arrivals,
+          auctions,
+          expenses,
+          transactions,
+          notifications,
+        })
       );
     } catch {
       // Ignore quota errors
     }
-  }, [settings, farmers, buyers, arrivals, auctions, expenses]);
+  }, [
+    settings,
+    farmers,
+    buyers,
+    arrivals,
+    auctions,
+    expenses,
+    transactions,
+    notifications,
+  ]);
 
-  const currentTab = TABS.find((t) => t.id === activeTab) || TABS[0];
+  const handleLogin = ({ remember }) => {
+    setIsAuthenticated(true);
+    if (remember) {
+      localStorage.setItem(AUTH_KEY, 'true');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_KEY);
+    setIsAuthenticated(false);
+    setActiveTab('dashboard');
+  };
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  const currentTab = TABS.find((t) => t.id === activeTab);
+  const headerTitle =
+    activeTab === 'notifications'
+      ? 'App'
+      : currentTab?.headerTitle || 'Dashboard';
   const initials = getInitials(settings.ownerName);
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   // Farmer handlers
   const handleAddFarmer = (data) => {
@@ -95,14 +150,83 @@ export default function App() {
     setBuyers((prev) => prev.filter((b) => b.id !== id));
   };
 
-  // Arrival handler
+  // Arrival handlers
   const handleAddArrival = (data) => {
     setArrivals((prev) => [{ id: `arr-${Date.now()}`, ...data }, ...prev]);
+  };
+  const handleUpdateArrival = (id, data) => {
+    setArrivals((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...data } : a))
+    );
+  };
+  const handleDeleteArrival = (id) => {
+    setArrivals((prev) => prev.filter((a) => a.id !== id));
   };
 
   // Auction handler
   const handleAddAuction = (data) => {
     setAuctions((prev) => [data, ...prev]);
+    setTransactions((prev) => [
+      {
+        id: data.id,
+        title: `${data.farmerName} → ${data.buyerName}`,
+        subtitle: `${data.fruit} ${data.grade} · ${data.boxes} boxes`,
+        amount: data.boxes * data.rate,
+        type: 'credit',
+        category: 'auction',
+      },
+      ...prev,
+    ]);
+  };
+
+  // Expense & Payment handlers
+  const handleAddExpense = (exp) => {
+    const id = `EXP-${String(35 + expenses.length).padStart(4, '0')}`;
+    setExpenses((prev) => [{ id, ...exp }, ...prev]);
+    setTransactions((prev) => [
+      {
+        id,
+        title: exp.title,
+        subtitle: exp.subtitle,
+        amount: exp.amount,
+        type: 'debit',
+        category: 'expense',
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleRecordPayment = (buyerId, amount) => {
+    const buyer = buyers.find((b) => b.id === buyerId);
+    setBuyers((prev) =>
+      prev.map((b) =>
+        b.id === buyerId
+          ? { ...b, outstanding: Math.max(0, b.outstanding - amount) }
+          : b
+      )
+    );
+    const id = `PAY-${String(90 + transactions.length).padStart(4, '0')}`;
+    setTransactions((prev) => [
+      {
+        id,
+        title: `${buyer?.businessName || 'Buyer'}`,
+        subtitle: 'Payment Received',
+        amount,
+        type: 'credit',
+        category: 'payment',
+      },
+      ...prev,
+    ]);
+  };
+
+  // Notification handlers
+  const handleMarkAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  };
+  const handleMarkOneRead = (id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
+    );
   };
 
   // Backup / Restore / Reset
@@ -115,6 +239,8 @@ export default function App() {
       arrivals,
       auctions,
       expenses,
+      transactions,
+      notifications,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: 'application/json',
@@ -134,6 +260,8 @@ export default function App() {
     if (Array.isArray(data.arrivals)) setArrivals(data.arrivals);
     if (Array.isArray(data.auctions)) setAuctions(data.auctions);
     if (Array.isArray(data.expenses)) setExpenses(data.expenses);
+    if (Array.isArray(data.transactions)) setTransactions(data.transactions);
+    if (Array.isArray(data.notifications)) setNotifications(data.notifications);
     alert('Backup restored successfully!');
   };
 
@@ -145,6 +273,8 @@ export default function App() {
     setArrivals(INITIAL_ARRIVALS);
     setAuctions(INITIAL_AUCTIONS);
     setExpenses(INITIAL_EXPENSES);
+    setTransactions(INITIAL_TRANSACTIONS);
+    setNotifications(INITIAL_NOTIFICATIONS);
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -155,20 +285,26 @@ export default function App() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-gray-900 leading-tight">
-              {currentTab.headerTitle}
+              {headerTitle}
             </h1>
             <p className="text-xs text-gray-400">{getTodayDisplay()}</p>
           </div>
 
-          <div className="flex items-center gap-3 relative">
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setNotifOpen((o) => !o)}
+              onClick={() =>
+                setActiveTab((prev) =>
+                  prev === 'notifications' ? 'dashboard' : 'notifications'
+                )
+              }
               className="relative p-2 rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
               aria-label="Notifications"
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white" />
+              )}
             </button>
 
             <button
@@ -179,37 +315,6 @@ export default function App() {
             >
               {initials}
             </button>
-
-            {notifOpen && (
-              <div className="absolute right-0 top-12 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 p-3.5 z-40">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-gray-800">
-                    Notifications
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setNotifOpen(false)}
-                    className="text-[11px] text-emerald-700 font-semibold"
-                  >
-                    Close
-                  </button>
-                </div>
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 rounded-xl bg-amber-50/70 text-amber-900">
-                    <p className="font-semibold">Fruit Palace near credit limit</p>
-                    <p className="text-[11px] text-amber-700 mt-0.5">
-                      Rs 1,20,000 / 150,000 outstanding
-                    </p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-emerald-50/70 text-emerald-900">
-                    <p className="font-semibold">Today&apos;s Auction Summary</p>
-                    <p className="text-[11px] text-emerald-700 mt-0.5">
-                      {auctions.length} auctions recorded ({settings.companyName})
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </header>
@@ -223,7 +328,9 @@ export default function App() {
             buyers={buyers}
             expenses={expenses}
             weeklySales={INITIAL_WEEKLY_SALES}
+            transactions={transactions}
             onNavigate={setActiveTab}
+            onOpenTool={setQuickTool}
           />
         )}
         {activeTab === 'farmers' && (
@@ -247,6 +354,8 @@ export default function App() {
             arrivals={arrivals}
             farmers={farmers}
             onAdd={handleAddArrival}
+            onUpdate={handleUpdateArrival}
+            onDelete={handleDeleteArrival}
           />
         )}
         {activeTab === 'auction' && (
@@ -265,6 +374,14 @@ export default function App() {
             onBackup={handleBackup}
             onRestore={handleRestore}
             onReset={handleReset}
+            onLogout={handleLogout}
+          />
+        )}
+        {activeTab === 'notifications' && (
+          <NotificationsScreen
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onMarkOneRead={handleMarkOneRead}
           />
         )}
       </main>
@@ -303,6 +420,19 @@ export default function App() {
           })}
         </div>
       </nav>
+
+      {/* Quick Menu Tools Modal */}
+      <QuickToolsModal
+        tool={quickTool}
+        onClose={() => setQuickTool(null)}
+        farmers={farmers}
+        buyers={buyers}
+        auctions={auctions}
+        expenses={expenses}
+        transactions={transactions}
+        onAddExpense={handleAddExpense}
+        onRecordPayment={handleRecordPayment}
+      />
     </div>
   );
 }

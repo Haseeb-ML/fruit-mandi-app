@@ -6,6 +6,16 @@ import {
   Clock,
   Package,
   ReceiptText,
+  User,
+  Users,
+  Inbox,
+  BarChart2,
+  Banknote,
+  BookOpen,
+  FileSpreadsheet,
+  FileText,
+  CreditCard,
+  Minus,
 } from 'lucide-react';
 import { formatRs } from '../utils/format';
 
@@ -15,12 +25,13 @@ export default function DashboardScreen({
   buyers,
   expenses,
   weeklySales,
+  transactions,
   onNavigate,
+  onOpenTool,
 }) {
-  const [selectedDayIdx, setSelectedDayIdx] = useState(5); // Sat default like in video
+  const [selectedDayIdx, setSelectedDayIdx] = useState(5); // Sat default
   const [selectedFruit, setSelectedFruit] = useState('Mango');
 
-  // Compute live additions on top of baseline demo metrics so user edits reflect immediately
   const extraAuctionSales = auctions
     .slice(3)
     .reduce((sum, a) => sum + a.boxes * a.rate, 0);
@@ -68,7 +79,7 @@ export default function DashboardScreen({
       hintColor: 'text-blue-700',
       icon: Wallet,
       iconBg: 'bg-blue-50 text-blue-700',
-      onClick: () => onNavigate('more'),
+      onClick: () => onOpenTool('cashbook'),
     },
     {
       label: 'Pending Payments',
@@ -98,11 +109,23 @@ export default function DashboardScreen({
       hintColor: 'text-emerald-600',
       icon: ReceiptText,
       iconBg: 'bg-teal-50 text-teal-700',
-      onClick: () => onNavigate('more'),
+      onClick: () => onOpenTool('expenses'),
     },
   ];
 
-  // Build smooth SVG path for Weekly Sales chart
+  const quickMenu = [
+    { label: 'Farmers', urdu: 'کاشتکار', icon: User, color: 'bg-emerald-50 text-emerald-700', onClick: () => onNavigate('farmers') },
+    { label: 'Buyers', urdu: 'خریدار', icon: Users, color: 'bg-blue-50 text-blue-700', onClick: () => onNavigate('buyers') },
+    { label: 'Arrival', urdu: 'آمد', icon: Inbox, color: 'bg-purple-50 text-purple-700', onClick: () => onNavigate('arrival') },
+    { label: 'Auction', urdu: 'نیلامی', icon: BarChart2, color: 'bg-orange-50 text-orange-700', onClick: () => onNavigate('auction') },
+    { label: 'Payment', urdu: 'ادائیگی', icon: Banknote, color: 'bg-teal-50 text-teal-700', onClick: () => onOpenTool('payment') },
+    { label: 'Ledger', urdu: 'کھاتہ', icon: BookOpen, color: 'bg-indigo-50 text-indigo-700', onClick: () => onOpenTool('ledger') },
+    { label: 'Expenses', urdu: 'اخراجات', icon: CircleDollarSign, color: 'bg-rose-50 text-rose-700', onClick: () => onOpenTool('expenses') },
+    { label: 'Reports', urdu: 'رپورٹ', icon: FileSpreadsheet, color: 'bg-pink-50 text-pink-700', onClick: () => onOpenTool('reports') },
+    { label: 'Invoice', urdu: 'انوائس', icon: FileText, color: 'bg-amber-50 text-amber-700', onClick: () => onOpenTool('invoice') },
+    { label: 'Cash Book', urdu: 'نقد کتاب', icon: CreditCard, color: 'bg-cyan-50 text-cyan-700', onClick: () => onOpenTool('cashbook') },
+  ];
+
   const chartW = 300;
   const chartH = 140;
   const maxY = 260000;
@@ -128,7 +151,6 @@ export default function DashboardScreen({
   const areaPath = `${salesPath} L ${chartW} ${chartH} L 0 ${chartH} Z`;
   const activePt = points[selectedDayIdx] || points[5];
 
-  // Top Fruits data
   const fruitCounts = [
     { name: 'Mango', boxes: 340 + arrivals.filter((a) => a.fruit === 'Mango').length * 10 - 20 },
     { name: 'Apple', boxes: 245 },
@@ -181,7 +203,6 @@ export default function DashboardScreen({
         </div>
 
         <div className="relative flex gap-2 mt-2">
-          {/* Y-Axis Labels */}
           <div className="flex flex-col justify-between text-[11px] text-gray-400 py-1 select-none w-9 text-right">
             <span>260k</span>
             <span>195k</span>
@@ -190,7 +211,6 @@ export default function DashboardScreen({
             <span>0k</span>
           </div>
 
-          {/* SVG Area Chart */}
           <div className="relative flex-1">
             <svg
               viewBox={`0 0 ${chartW} ${chartH}`}
@@ -204,7 +224,6 @@ export default function DashboardScreen({
                 </linearGradient>
               </defs>
 
-              {/* Dashed Grid Lines */}
               {[0, 0.25, 0.5, 0.75, 1].map((r, idx) => (
                 <line
                   key={idx}
@@ -218,7 +237,6 @@ export default function DashboardScreen({
                 />
               ))}
 
-              {/* Active vertical line */}
               {activePt && (
                 <line
                   x1={activePt.x}
@@ -230,7 +248,6 @@ export default function DashboardScreen({
                 />
               )}
 
-              {/* Area & Lines */}
               <path d={areaPath} fill="url(#salesFill)" />
               <path
                 d={salesPath}
@@ -247,7 +264,6 @@ export default function DashboardScreen({
                 strokeLinecap="round"
               />
 
-              {/* Interactive Dots */}
               {points.map((pt, idx) => (
                 <g
                   key={pt.day}
@@ -280,7 +296,6 @@ export default function DashboardScreen({
               ))}
             </svg>
 
-            {/* Floating Tooltip */}
             {activePt && (
               <div
                 className="absolute top-6 bg-white/95 backdrop-blur-sm border border-gray-100 rounded-xl shadow-lg px-3.5 py-2.5 text-xs pointer-events-none transition-all"
@@ -302,7 +317,6 @@ export default function DashboardScreen({
               </div>
             )}
 
-            {/* X-Axis Labels */}
             <div className="flex justify-between text-[11px] text-gray-400 mt-1.5">
               {weeklySales.map((d, idx) => (
                 <button
@@ -360,6 +374,110 @@ export default function DashboardScreen({
                   )}
                 </div>
               </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Quick Menu (فوری رسائی) */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100">
+        <div className="mb-4">
+          <h2 className="text-base font-bold text-gray-900">Quick Menu</h2>
+          <p className="text-xs text-gray-400 font-urdu">فوری رسائی</p>
+        </div>
+        <div className="grid grid-cols-5 gap-y-4 gap-x-2 text-center">
+          {quickMenu.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={item.onClick}
+                className="flex flex-col items-center group"
+              >
+                <div
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center mb-1.5 transition-transform group-active:scale-95 ${item.color}`}
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-semibold text-gray-800 leading-tight">
+                  {item.label}
+                </span>
+                <span className="text-[10px] text-gray-400 font-urdu">
+                  {item.urdu}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Recent Transactions (حالیہ لین دین) */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">
+              Recent Transactions
+            </h2>
+            <p className="text-xs text-gray-400 font-urdu">حالیہ لین دین</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenTool('cashbook')}
+            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            View All →
+          </button>
+        </div>
+
+        <div className="divide-y divide-gray-100">
+          {transactions.slice(0, 5).map((tx) => {
+            const isDebit = tx.type === 'debit';
+            const isPayment = tx.category === 'payment';
+            return (
+              <div
+                key={tx.id}
+                className="py-3 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                      isDebit
+                        ? 'bg-rose-50 text-rose-600'
+                        : isPayment
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'bg-emerald-50 text-emerald-700'
+                    }`}
+                  >
+                    {isDebit ? (
+                      <Minus className="w-4 h-4" />
+                    ) : isPayment ? (
+                      <Wallet className="w-4 h-4" />
+                    ) : (
+                      <BarChart2 className="w-4 h-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {tx.title}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {tx.subtitle}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p
+                    className={`text-sm font-bold ${
+                      isDebit ? 'text-rose-600' : 'text-emerald-700'
+                    }`}
+                  >
+                    {isDebit ? '' : '+'}
+                    {formatRs(tx.amount)}
+                  </p>
+                  <p className="text-[11px] text-gray-400">{tx.id}</p>
+                </div>
+              </div>
             );
           })}
         </div>

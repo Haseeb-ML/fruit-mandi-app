@@ -32,3 +32,4 @@ export default function Modal({ open, title, urduTitle, onClose, children }) {
     </div>
   );
 }
+

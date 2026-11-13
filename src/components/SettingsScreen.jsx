@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, Upload, RotateCcw, Check } from 'lucide-react';
+import { Download, Upload, RotateCcw, Check, LogOut } from 'lucide-react';
 
 export default function SettingsScreen({
   settings,
@@ -7,14 +7,22 @@ export default function SettingsScreen({
   onBackup,
   onRestore,
   onReset,
+  onLogout,
 }) {
   const fileRef = useRef(null);
+  const [draft, setDraft] = useState(settings);
   const [savedBanner, setSavedBanner] = useState(false);
 
   const handleChange = (field, value) => {
-    onUpdateSettings({ ...settings, [field]: value });
+    const next = { ...draft, [field]: value };
+    setDraft(next);
+    onUpdateSettings(next);
+  };
+
+  const handleExplicitSave = () => {
+    onUpdateSettings(draft);
     setSavedBanner(true);
-    setTimeout(() => setSavedBanner(false), 1800);
+    setTimeout(() => setSavedBanner(false), 2000);
   };
 
   const handleFilePick = (e) => {
@@ -62,7 +70,7 @@ export default function SettingsScreen({
           </label>
           <input
             type="text"
-            value={settings.companyName}
+            value={draft.companyName}
             onChange={(e) => handleChange('companyName', e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
           />
@@ -74,7 +82,7 @@ export default function SettingsScreen({
           </label>
           <input
             type="text"
-            value={settings.ownerName}
+            value={draft.ownerName}
             onChange={(e) => handleChange('ownerName', e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
           />
@@ -87,7 +95,7 @@ export default function SettingsScreen({
             </label>
             <input
               type="text"
-              value={settings.phone}
+              value={draft.phone}
               onChange={(e) => handleChange('phone', e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
             />
@@ -98,7 +106,7 @@ export default function SettingsScreen({
             </label>
             <input
               type="text"
-              value={settings.city}
+              value={draft.city}
               onChange={(e) => handleChange('city', e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
             />
@@ -111,7 +119,7 @@ export default function SettingsScreen({
           </label>
           <input
             type="text"
-            value={settings.licenseNo}
+            value={draft.licenseNo}
             onChange={(e) => handleChange('licenseNo', e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
           />
@@ -123,7 +131,7 @@ export default function SettingsScreen({
           </label>
           <input
             type="text"
-            value={settings.address}
+            value={draft.address}
             onChange={(e) => handleChange('address', e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:border-emerald-600"
           />
@@ -150,7 +158,7 @@ export default function SettingsScreen({
                 type="number"
                 step="0.1"
                 min="0"
-                value={settings.defaultCommissionPercent}
+                value={draft.defaultCommissionPercent}
                 onChange={(e) =>
                   handleChange(
                     'defaultCommissionPercent',
@@ -174,7 +182,7 @@ export default function SettingsScreen({
                 type="number"
                 step="0.1"
                 min="0"
-                value={settings.marketFeePercent}
+                value={draft.marketFeePercent}
                 onChange={(e) =>
                   handleChange('marketFeePercent', Number(e.target.value) || 0)
                 }
@@ -226,15 +234,45 @@ export default function SettingsScreen({
           />
         </div>
 
-        <button
-          type="button"
-          onClick={onReset}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-semibold transition-colors"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          Reset Demo Data
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-semibold transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset Demo Data
+          </button>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-semibold transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Logout
+          </button>
+        </div>
       </div>
+
+      {/* App Footer Card */}
+      <div className="bg-white rounded-2xl p-4 text-center shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100">
+        <p className="text-sm font-bold text-gray-800">
+          Fruit Mandi Arhti System v1.0
+        </p>
+        <p className="text-xs text-gray-400 mt-1">
+          <span className="font-urdu">فروٹ منڈی آڑھتی سسٹم</span> · Built for
+          Pakistani Fruit Markets
+        </p>
+      </div>
+
+      {/* Primary Save Button */}
+      <button
+        type="button"
+        onClick={handleExplicitSave}
+        className="w-full py-3.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold shadow-md shadow-emerald-700/20 transition-colors"
+      >
+        Save Settings — <span className="font-urdu">ترتیبات محفوظ کریں</span>
+      </button>
     </div>
   );
 }
